@@ -1,74 +1,78 @@
 const recordButton = document.getElementById('record');
 const stopButton = document.getElementById('stop');
 const audioElement = document.getElementById('audio');
-const uploadForm = document.getElementById('uploadForm');
-const audioDataInput = document.getElementById('audioData');
 const timerDisplay = document.getElementById('timer');
-
 let mediaRecorder;
 let audioChunks = [];
-let startTime;
 let timerInterval;
+let startTime;
 
-function formatTime(time) {
-  const minutes = Math.floor(time / 60);
-  const seconds = Math.floor(time % 60);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+// Function to format time in MM:SS
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
 }
 
-recordButton.addEventListener('click', () => {
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.start();
+// Function to handle the "Record" button click
+recordButton.addEventListener('click', async () => {
+    console.log("Record button clicked");
 
-      startTime = Date.now();
-      timerInterval = setInterval(() => {
-        const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
-        timerDisplay.textContent = formatTime(elapsedTime);
-      }, 1000);
+    try {
+        // Request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.start();
 
-      mediaRecorder.ondataavailable = e => {
-        audioChunks.push(e.data);
-      };
+        // Start timer
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerDisplay.textContent = formatTime(elapsed);
+        }, 1000);
 
-      mediaRecorder.onstop = () => {
-        clearInterval(timerInterval);  // Stop the timer when recording stops
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const formData = new FormData();
-        formData.append('audio_data', audioBlob, 'recorded_audio.wav');
+        // Collect audio data as it becomes available
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+            console.log("Audio data available:", event.data);
+        };
 
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            location.reload(); // Force refresh
-        })
-        .catch(error => {
-            console.error('Error uploading audio:', error);
-        });
-      };
-    })
-    .catch(error => {
-      console.error('Error accessing microphone:', error);
-    });
+        // When recording stops, create a blob and upload it
+        mediaRecorder.onstop = () => {
+            console.log("Recording stopped");
+            clearInterval(timerInterval);
 
-  recordButton.disabled = true;
-  stopButton.disabled = false;
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            audioElement.src = URL.createObjectURL(audioBlob);
+
+            // Prepare form data to send to the server
+            const formData = new FormData();
+            formData.append('audio_data', audioBlob, 'recorded_audio.wav');
+
+            // Send the audio data to the server via POST
+            fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            }).then(response => {
+                if (response.ok) {
+                    console.log("Audio uploaded successfully");
+                    window.location.reload(); // Reload to display the uploaded audio
+                } else {
+                    console.error("Error uploading audio");
+                }
+            }).catch(error => {
+                console.error("Error uploading audio:", error);
+            });
+        };
+    } catch (err) {
+        console.error('Error accessing microphone:', err);
+        alert("Please grant microphone permissions to record audio.");
+    }
 });
 
+// Function to handle the "Stop" button click
 stopButton.addEventListener('click', () => {
-  if (mediaRecorder) {
-    mediaRecorder.stop();
-  }
-
-  recordButton.disabled = false;
-  stopButton.disabled = true;
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
 });
-
-// Initially disable the stop button
-stopButton.disabled = true;

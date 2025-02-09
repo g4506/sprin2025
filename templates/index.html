@@ -5,65 +5,67 @@
 </head>
 <body>
 
-    <table style="width:100%">
-        <tr>
-            <td style="width:50%">
-                <h2>Record and Upload Audio</h2>
+<table style="width:100%">
+    <tr>
+        <td style="width:50%">
+            <h2>Record and Upload Audio</h2>
+            <button id="record">Record</button>
+            <button id="stop">Stop</button>
+            <span id="timer">00:00</span>
+            <audio id="audio"></audio>
+            <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="audio_data" id="audioData">
+            </form>
+            <script src="scripts.js"></script>
+            <hr>
 
-                <button id="record">Record</button>
-                <button id="stop">Stop</button>
-                <span id="timer">00:00</span>
-                <audio id="audio"></audio>
-                <form id="uploadForm" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="audio_data" id="audioData">
-                </form>
-                <script src="script.js"></script>
-                <hr>
-                <h2>Recorded Files</h2>
-                <ul>
-                    {% for file in files %}
-                    {% if not file.startswith('tts/') %} 
-                    <li>
-                        <audio controls>
-                            <source src="{{ url_for('uploaded_file', filename=file) }}">
-                            Your browser does not support the audio element.
-                        </audio><br>
-                        {{ file }}
-                        <a href="{{ url_for('uploaded_file', filename=file + '.txt') }}">{{ file }}</a>
-                    </li>
+            <h2>Recorded Files</h2>
+            <ul>
+                {% for file in files %}
+                    {% if not file.startswith('tts/') %}
+                        <li>
+                            <audio controls>
+                                <source src="{{ url_for('uploaded_file', filename=file) }}">
+                                Your browser does not support the audio element.
+                            </audio><br>
+                            {{ file }}
+                            <a href="{{ url_for('uploaded_file', filename=file + '.txt') }}">{{ file }} Transcript</a><br>
+                            <a href="{{ url_for('uploaded_file', filename=file + '_sentiment.txt') }}">Sentiment</a>
+                            <br>
+                            {% for sentiment_result in sentiment_results %}
+                                {% if sentiment_result.startswith('Sentiment for ' + file) %}
+                                    <p>{{ sentiment_result }}</p>
+                                {% endif %}
+                            {% endfor %}
+                        </li>
                     {% endif %}
-                    {% endfor %}
-                </ul>
-            </td>
-            <td style="width:50%">
-                <h2>Type in your text to generate audio</h2>
+                {% endfor %}
+            </ul>
+        </td>
+        <td style="width:50%">
+            <h2>Type in your text to generate audio</h2>
+            <form action="/upload_text" method="post">
+                <textarea name="text" rows="10" cols="50"></textarea>
+                <br>
+                <input type="submit" value="Upload">
+            </form>
+            <h3>Generated Audio Files</h3>
+            <ul>
+                {% for file in files %}
+                    {% if file.startswith('tts/') %}
+                        <li>
+                            <audio controls>
+                                <source src="{{ url_for('uploaded_file', filename=file) }}">
+                                Your browser does not support the audio element.
+                            </audio><br>
+                            {{ file }}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </td>
+    </tr>
+</table>
 
-                <form action="/upload_text" method="post">
-                  <textarea name="text" rows="10" cols="50"></textarea>
-                  <br>
-                  <input type="submit" value="Upload">
-                </form>
-                
-                <h3>Generated Audio Files</h3>
-                <ul>
-                    {% for file in files %}
-                    {% if file.startswith('tts/') %} 
-                            <li>
-                                <audio controls>
-                                    <source src="{{ url_for('uploaded_file', filename=file) }}">
-                                    Your browser does not support the audio element.
-                                </audio><br> 
-                                {{ file }}
-                                
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ul>
-            </td>
-            
-
-
-        </tr>
-    </table>
 </body>
 </html>
